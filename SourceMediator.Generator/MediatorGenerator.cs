@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Text;
@@ -30,32 +31,35 @@ namespace {((NamespaceDeclarationSyntax) mediatorClass.Parent)?.Name}
     public partial class {mediatorClass.Identifier}
     {{
 ");
-            foreach (var handlerClass in ((MediatorSyntaxReceiver) context.SyntaxReceiver)?.MediatorRequestHandlers ?? Enumerable.Empty<ClassDeclarationSyntax>())
+            foreach (var handlerClass in GetRequestHandlers(context))
             {
                 var types = LookupRequestAndResponseTypes(handlerClass);
                 var fieldName = $"_{Char.ToLowerInvariant(handlerClass.Identifier.ValueText[0])}{handlerClass.Identifier.ValueText.Substring(1)}";
 
-                sourceBuilder.AppendLine($"\t\tprivate readonly IRequestHandler<{types.RequestType}, {types.ResponseType}> {fieldName} = new {handlerClass.Identifier.ValueText}();");
+                sourceBuilder.Append($"\t\tprivate readonly IRequestHandler<{types.RequestType}, {types.ResponseType}> {fieldName} = new {handlerClass.Identifier.ValueText}();");
                 sourceBuilder.AppendLine($@"
         public async Task<{types.ResponseType}> Send({types.RequestType} request, CancellationToken cancellationToken = default)
         {{
             return await {fieldName}.Handle(request, cancellationToken);
         }}");
-                sourceBuilder.AppendLine("");
             }
 
-            sourceBuilder.AppendLine(@"
-    }}
-}}
+            sourceBuilder.AppendLine(@"    }
+}
 ");
             context.AddSource("SourceMediator", SourceText.From(sourceBuilder.ToString(), Encoding.UTF8));
         }
 
         private static bool TryGetMediatorClass(GeneratorExecutionContext context, out ClassDeclarationSyntax mediatorClass)
         {
-            var mediatorSyntaxReceiver = (MediatorSyntaxReceiver) context.SyntaxReceiver;
+            MediatorSyntaxReceiver mediatorSyntaxReceiver = (MediatorSyntaxReceiver) context.SyntaxReceiver;
             mediatorClass = mediatorSyntaxReceiver?.MediatorClassDeclaration;
             return mediatorClass != null;
+        }
+
+        private static IEnumerable<ClassDeclarationSyntax> GetRequestHandlers(GeneratorExecutionContext context)
+        {
+            return ((MediatorSyntaxReceiver) context.SyntaxReceiver)?.MediatorRequestHandlers ?? Enumerable.Empty<ClassDeclarationSyntax>();
         }
 
         private (string RequestType, string ResponseType) LookupRequestAndResponseTypes(TypeDeclarationSyntax requestHandler)
