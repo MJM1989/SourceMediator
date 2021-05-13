@@ -6,6 +6,7 @@ using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
+using Newtonsoft.Json;
 
 namespace SourceMediator.Generator
 {
@@ -22,8 +23,7 @@ namespace SourceMediator.Generator
             if (!TryGetMediatorClass(context, out var mediatorClass))
                 return;
 
-            var sourceBuilder = new StringBuilder($@"
-using System.Threading;
+            var sourceBuilder = new StringBuilder($@"using System.Threading;
 using System.Threading.Tasks;
 
 namespace {((NamespaceDeclarationSyntax) mediatorClass.Parent)?.Name}
@@ -35,13 +35,14 @@ namespace {((NamespaceDeclarationSyntax) mediatorClass.Parent)?.Name}
             {
                 var types = LookupRequestAndResponseTypes(handlerClass);
                 var fieldName = $"_{Char.ToLowerInvariant(handlerClass.Identifier.ValueText[0])}{handlerClass.Identifier.ValueText.Substring(1)}";
-
-                sourceBuilder.Append($"\t\tprivate readonly IRequestHandler<{types.RequestType}, {types.ResponseType}> {fieldName} = new {handlerClass.Identifier.ValueText}();");
-                sourceBuilder.AppendLine($@"
-        public async Task<{types.ResponseType}> Send({types.RequestType} request, CancellationToken cancellationToken = default)
+                
+                sourceBuilder.AppendLine($"\t\tprivate readonly IRequestHandler<{types.RequestType}, {types.ResponseType}> {fieldName} = new {handlerClass.Identifier.ValueText}();");
+                sourceBuilder.Append($"{handlerClass.Members[0].GetLeadingTrivia().ToString()}");
+                sourceBuilder.AppendLine($@"public async Task<{types.ResponseType}> Send({types.RequestType} request, CancellationToken cancellationToken = default)
         {{
             return await {fieldName}.Handle(request, cancellationToken);
         }}");
+                sourceBuilder.AppendLine(string.Empty);
             }
 
             sourceBuilder.AppendLine(@"    }
