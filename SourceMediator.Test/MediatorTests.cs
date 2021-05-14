@@ -5,7 +5,7 @@ using Xunit;
 
 namespace SourceMediator.Test
 {
-    public class UnitTest1
+    public class MediatorTests
     {
         [Fact]
         public async Task StartWithTwoExamples()
@@ -17,6 +17,17 @@ namespace SourceMediator.Test
 
             response.Success.Should().BeTrue();
             response2.Success.Should().BeFalse();
+        }
+
+        [Fact]
+        public async Task TestSimplePipelineBehavior()
+        {
+            var mediator = new Mediator();
+
+            var response = await mediator.Send(new ExampleRequest {WillSucceed = true});
+
+            StaticLogger.LogMessages.Should().Contain("Executing request 'ExampleRequest'");
+            StaticLogger.LogMessages.Should().Contain("Executed request 'ExampleRequest' and received response 'ExampleResponse'");
         }
     }
 }

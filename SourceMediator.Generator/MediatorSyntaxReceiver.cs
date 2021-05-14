@@ -9,6 +9,7 @@ namespace SourceMediator.Generator
         public ClassDeclarationSyntax MediatorClassDeclaration { get; private set; }
 
         public List<ClassDeclarationSyntax> MediatorRequestHandlers { get; } = new List<ClassDeclarationSyntax>();
+        public List<ClassDeclarationSyntax> Pipelines { get; } = new List<ClassDeclarationSyntax>();
 
         public void OnVisitSyntaxNode(SyntaxNode syntaxNode)
         {
@@ -31,6 +32,12 @@ namespace SourceMediator.Generator
                                 && genericType.TypeArgumentList.Arguments.Count == 2)
                             {
                                 MediatorRequestHandlers.Add(classDeclarationSyntax);
+                            }
+                            
+                            if (genericType.Identifier.ValueText == "IPipeline"
+                                && genericType.TypeArgumentList.Arguments.Count == 2)
+                            {
+                                Pipelines.Add(classDeclarationSyntax);
                             }
                         }
                     }

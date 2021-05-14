@@ -1,12 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
-using Newtonsoft.Json;
 
 namespace SourceMediator.Generator
 {
@@ -31,6 +29,12 @@ namespace {((NamespaceDeclarationSyntax) mediatorClass.Parent)?.Name}
     public partial class {mediatorClass.Identifier}
     {{
 ");
+            foreach (var pipelineClass in GetPipelines(context))
+            {
+                sourceBuilder.AppendLine($"// {pipelineClass.Identifier}");
+            }
+            
+            
             foreach (var handlerClass in GetRequestHandlers(context))
             {
                 var types = LookupRequestAndResponseTypes(handlerClass);
@@ -38,9 +42,19 @@ namespace {((NamespaceDeclarationSyntax) mediatorClass.Parent)?.Name}
                 
                 sourceBuilder.AppendLine($"\t\tprivate readonly IRequestHandler<{types.RequestType}, {types.ResponseType}> {fieldName} = new {handlerClass.Identifier.ValueText}();");
                 sourceBuilder.Append($"{handlerClass.Members[0].GetLeadingTrivia().ToString()}");
-                sourceBuilder.AppendLine($@"public async Task<{types.ResponseType}> Send({types.RequestType} request, CancellationToken cancellationToken = default)
+                sourceBuilder.AppendLine(
+                    $@"public async Task<{types.ResponseType}> Send({types.RequestType} request, CancellationToken cancellationToken = default) 
         {{
-            return await {fieldName}.Handle(request, cancellationToken);
+            RequestHandlerDelegate<{types.ResponseType}> delegate0 = () => {fieldName}.Handle(request, cancellationToken);");
+
+                int index = 0;
+                foreach (var pipelineClass in GetPipelines(context))
+                {
+                    index++;
+                    sourceBuilder.AppendLine($"\t\t\tRequestHandlerDelegate<{types.ResponseType}> delegate{index} = () => new {pipelineClass.Identifier}<{types.RequestType}, {types.ResponseType}>().Execute(request, cancellationToken, delegate0);");
+                }
+
+                sourceBuilder.AppendLine($@"            return await delegate{index}();
         }}");
                 sourceBuilder.AppendLine(string.Empty);
             }
@@ -48,6 +62,8 @@ namespace {((NamespaceDeclarationSyntax) mediatorClass.Parent)?.Name}
             sourceBuilder.AppendLine(@"    }
 }
 ");
+            
+            
             context.AddSource("SourceMediator", SourceText.From(sourceBuilder.ToString(), Encoding.UTF8));
         }
 
@@ -61,6 +77,11 @@ namespace {((NamespaceDeclarationSyntax) mediatorClass.Parent)?.Name}
         private static IEnumerable<ClassDeclarationSyntax> GetRequestHandlers(GeneratorExecutionContext context)
         {
             return ((MediatorSyntaxReceiver) context.SyntaxReceiver)?.MediatorRequestHandlers ?? Enumerable.Empty<ClassDeclarationSyntax>();
+        }
+
+        private static IEnumerable<ClassDeclarationSyntax> GetPipelines(GeneratorExecutionContext context)
+        {
+            return ((MediatorSyntaxReceiver) context.SyntaxReceiver)?.Pipelines ?? Enumerable.Empty<ClassDeclarationSyntax>();
         }
 
         private (string RequestType, string ResponseType) LookupRequestAndResponseTypes(TypeDeclarationSyntax requestHandler)
