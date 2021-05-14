@@ -27,7 +27,9 @@ namespace SourceMediator.Test
             var response = await mediator.Send(new ExampleRequest {WillSucceed = true});
 
             StaticLogger.LogMessages.Should().Contain("Executing request 'ExampleRequest'");
+            StaticLogger.LogMessages.Should().Contain("Second logger: Executing request 'ExampleRequest'");
             StaticLogger.LogMessages.Should().Contain("Executed request 'ExampleRequest' and received response 'ExampleResponse'");
+            StaticLogger.LogMessages.Should().Contain("Second logger: Executed request 'ExampleRequest' and received response 'ExampleResponse'");
         }
     }
 }

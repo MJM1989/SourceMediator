@@ -51,7 +51,7 @@ namespace {((NamespaceDeclarationSyntax) mediatorClass.Parent)?.Name}
                 foreach (var pipelineClass in GetPipelines(context))
                 {
                     index++;
-                    sourceBuilder.AppendLine($"\t\t\tRequestHandlerDelegate<{types.ResponseType}> delegate{index} = () => new {pipelineClass.Identifier}<{types.RequestType}, {types.ResponseType}>().Execute(request, cancellationToken, delegate0);");
+                    sourceBuilder.AppendLine($"\t\t\tRequestHandlerDelegate<{types.ResponseType}> delegate{index} = () => new {pipelineClass.Identifier}<{types.RequestType}, {types.ResponseType}>().Execute(request, cancellationToken, delegate{index - 1});");
                 }
 
                 sourceBuilder.AppendLine($@"            return await delegate{index}();
