@@ -29,12 +29,6 @@ namespace {((NamespaceDeclarationSyntax) mediatorClass.Parent)?.Name}
     public partial class {mediatorClass.Identifier}
     {{
 ");
-            foreach (var pipelineClass in GetPipelines(context))
-            {
-                sourceBuilder.AppendLine($"// {pipelineClass.Identifier}");
-            }
-            
-            
             foreach (var handlerClass in GetRequestHandlers(context))
             {
                 var types = LookupRequestAndResponseTypes(handlerClass);
@@ -48,7 +42,7 @@ namespace {((NamespaceDeclarationSyntax) mediatorClass.Parent)?.Name}
             RequestHandlerDelegate<{types.ResponseType}> delegate0 = () => {fieldName}.Handle(request, cancellationToken);");
 
                 int index = 0;
-                foreach (var pipelineClass in GetPipelines(context))
+                foreach (var pipelineClass in GetPipelines(context).OrderByDescending(GetPipelineOrder))
                 {
                     index++;
                     sourceBuilder.AppendLine($"\t\t\tRequestHandlerDelegate<{types.ResponseType}> delegate{index} = () => new {pipelineClass.Identifier}<{types.RequestType}, {types.ResponseType}>().Execute(request, cancellationToken, delegate{index - 1});");
@@ -65,6 +59,16 @@ namespace {((NamespaceDeclarationSyntax) mediatorClass.Parent)?.Name}
             
             
             context.AddSource("SourceMediator", SourceText.From(sourceBuilder.ToString(), Encoding.UTF8));
+        }
+
+        private static int GetPipelineOrder(ClassDeclarationSyntax pipelineClass)
+        {
+            var pipelineOrderAttribute = pipelineClass.AttributeLists
+                .SelectMany(al => al.Attributes)
+                .SingleOrDefault(a => a.Name.ToString() == "PipelineOrder");
+
+            int.TryParse(pipelineOrderAttribute?.ArgumentList?.Arguments[0].ToString() ?? "0", out var order);
+            return order;
         }
 
         private static bool TryGetMediatorClass(GeneratorExecutionContext context, out ClassDeclarationSyntax mediatorClass)
